@@ -3,7 +3,65 @@
 Module for reading in HDF5 data from the PIP code 
 """
 
-def pipread(fname):
+def pipread(fname,tstep=-1):
+    #import h5py
+    import numpy as np
+    import glob
+    confdir=[fname,'config.txt']
+    confdir=''.join(confdir) #Get the config for the simulation
+    with open(confdir) as fp:
+       line = fp.readline()
+       cnt = 1
+       lend=0
+       conf={}
+       while lend==0:
+           #print("Line {}: {}".format(cnt, line.strip()))
+           lar=line.strip()
+           lar=lar.split(':',1)
+           larn=lar[0].strip()
+           larv=lar[1].strip()
+           conf[larn]=larv
+           line = fp.readline()
+           cnt += 1
+           if line.strip()=='ENDSETTING':
+               lend=1
+#        dict(line.split(':', 1) for line in open(''.join(confdir)))
+    #print(conf)
+    if (tstep != -1): 
+        print("loading single time step")
+        fname=''.join([fname,'t',"{:0>4d}".format(tstep),'.h5'])
+        data=pipreadtimestep(fname)
+    
+    if tstep ==-1:
+        print("reading in all time steps")
+        timeCounter = len(glob.glob1(fname,"*.h5"))
+        print(timeCounter)
+        itco=0
+        for t0 in sorted(glob.glob1(fname,"*.h5")):
+            #t0=0
+            fnamet=''.join([fname,t0])
+            print(fnamet)
+            datatemp=pipreadtimestep(fnamet)
+            if itco != 0:
+                for param in datatemp:
+                    if param != 'xgrid' and param!='ygrid' and param!='zgrid':
+                        ref_data = datatemp[param]
+#                        print(ref_data.shape,data[param].shape)
+#                        data[param]=np.stack((data[param],ref_data),axis=-1)
+                        data[param]=np.concatenate([data[param],ref_data[...,np.newaxis]],axis=-1)
+#                        data[param]=data[param].append(ref_data)  
+            if itco == 0:
+                data=datatemp
+                for param in datatemp:
+                    if param != 'xgrid' and param!='ygrid' and param!='zgrid':
+                        data[param]=data[param][...,np.newaxis]
+                itco=1     
+    data=cv2pv(data)
+            
+    return(data)
+
+###############################################################################    
+def pipreadtimestep(fname):
     import h5py
     import numpy as np
     with h5py.File(fname, "r") as f:
@@ -13,13 +71,16 @@ def pipread(fname):
         # Get the data
         data={}
         for param in f:
+            #print(param)
             ref_data = np.array(f[param])
-            data[param]=ref_data
+            if (param != 'dx') and (param != 'dy') and (param != 'dz') and (param != 'xgrid') and (param != 'ygrid') and (param != 'zgrid'):
+                ref_data=np.transpose(ref_data,(2, 1, 0)) #convert it to x,y,z
+            data[param]=np.squeeze(ref_data)
             
-        data=cv2pv(data)
-        
         return(data)
-    
+            
+        
+###############################################################################        
 def pipread2(fname):
     #Old version for testing
     #Not used
@@ -31,7 +92,7 @@ def pipread2(fname):
 
         # Get the data
         #data = list(f[a_group_key])
-        ro_p=np.array(f['ro_p'])
+        ro_p=np.transpose(np.array(f['ro_p']),(2, 1, 0))
         bx=np.array(f['bx'])
         by=np.array(f['by'])
         bz=np.array(f['bz'])
@@ -49,7 +110,8 @@ def pipread2(fname):
               'x':xg,'y':yg,'z':zg}
         
         return(data)
-    
+
+###############################################################################    
 def cv2pv(data):
     import numpy as np
     gm=5.0/3.0
