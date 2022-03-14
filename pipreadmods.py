@@ -3,7 +3,7 @@
 Module for reading in HDF5 data from the PIP code 
 """
 
-def pipread(fname,tstep=-1):
+def pipread(fname,tstep=-1,vararr='all'):
     #import h5py
     import numpy as np
     import glob
@@ -26,11 +26,18 @@ def pipread(fname,tstep=-1):
            if line.strip()=='ENDSETTING':
                lend=1
 #        dict(line.split(':', 1) for line in open(''.join(confdir)))
-    #print(conf)
+#    print(conf)
+    if (vararr=='all'):
+        vararr=[]
+        if (conf['flag_eqs'] == 'MHD'):
+            vararr=['ro_p','mx_p','my_p','mz_p','en_p','bx','by','bz','xgrid','ygrid','zgrid']
+        if (conf['flag_eqs'] == 'PIP'):
+            vararr=['ro_p','mx_p','my_p','mz_p','en_p','ro_n','mx_n','my_n','mz_n','en_n','bx','by','bz','xgrid','ygrid','zgrid']
+    print(vararr)
     if (tstep != -1): 
         print("loading single time step")
         fname=''.join([fname,'t',"{:0>4d}".format(tstep),'.h5'])
-        data=pipreadtimestep(fname)
+        data=pipreadtimestep(fname,vararr)
     
     if tstep ==-1:
         print("reading in all time steps")
@@ -41,7 +48,7 @@ def pipread(fname,tstep=-1):
             #t0=0
             fnamet=''.join([fname,t0])
             print(fnamet)
-            datatemp=pipreadtimestep(fnamet)
+            datatemp=pipreadtimestep(fnamet,vararr)
             if itco != 0:
                 for param in datatemp:
                     if param != 'xgrid' and param!='ygrid' and param!='zgrid':
@@ -61,7 +68,7 @@ def pipread(fname,tstep=-1):
     return(data)
 
 ###############################################################################    
-def pipreadtimestep(fname):
+def pipreadtimestep(fname,vararr):
     import h5py
     import numpy as np
     with h5py.File(fname, "r") as f:
@@ -70,11 +77,11 @@ def pipreadtimestep(fname):
 
         # Get the data
         data={}
-        for param in f:
-            #print(param)
+        for param in vararr:
+#            print(param)
             ref_data = np.array(f[param])
-            if (param != 'dx') and (param != 'dy') and (param != 'dz') and (param != 'xgrid') and (param != 'ygrid') and (param != 'zgrid'):
-                ref_data=np.transpose(ref_data,(2, 1, 0)) #convert it to x,y,z
+#            if (param != 'dx') and (param != 'dy') and (param != 'dz') and (param != 'xgrid') and (param != 'ygrid') and (param != 'zgrid'):
+#                ref_data=np.transpose(ref_data,(2, 1, 0)) #convert it to x,y,z
             data[param]=np.squeeze(ref_data)
             
         return(data)
@@ -131,4 +138,39 @@ def cv2pv(data):
     dataout={'ro_p':ro_p,'bx':bx,'by':by,'bz':bz,
               'vx_p':vx_p,'vy_p':vy_p,'vz_p':vz_p,'pr_p':pr_p,
               'xgrid':xg,'ygrid':yg,'zgrid':zg}
+    return(dataout)
+
+###############################################################################    
+def cv2pvvar(data,vararr):
+    import numpy as np
+    gm=5.0/3.0
+    dataout={}
+    for param in vararr:
+        if param == "xgrid":
+            xg=data["xgrid"]
+        if param == "ygrid":
+            yg=data["ygrid"]
+        if param == "zgrid":
+            zg=data["zgrid"]
+        if param == "ro_p":
+            ro_p=data["ro_p"]
+        if param == "vx_p":
+            vx_p=data["mx_p"]/data["ro_p"]
+        if param == "vy_p":
+            vy_p=data["my_p"]/data["ro_p"]
+        if param == "vz_p":
+            vz_p=data["mz_p"]/data["ro_p"]
+        if param == "bx":
+            bx=data["bx"]
+        if param == "by":
+            by=data["by"]
+        if param == "bz":
+            bz=data["bz"]
+        if param == "pr_p":
+            temparr=(gm-1.0)*(data["en_p"]-0.5*data["ro_p"]*(np.square(vx_p)+np.square(vy_p)+np.square(vz_p))
+                   -0.5*(np.square(bx)+np.square(by)+np.square(bz)))
+        dataout[param]=temparr
+#    dataout={'ro_p':ro_p,'bx':bx,'by':by,'bz':bz,
+#              'vx_p':vx_p,'vy_p':vy_p,'vz_p':vz_p,'pr_p':pr_p,
+#              'xgrid':xg,'ygrid':yg,'zgrid':zg}
     return(dataout)
