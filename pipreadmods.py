@@ -3,7 +3,7 @@
 Module for reading in HDF5 data from the PIP code 
 """
 
-def pipread(fname,tstep=-1,vararr='all'):
+def pipread(fname,tstep=-1,vararrin='all'):
     #import h5py
     import numpy as np
     import glob
@@ -27,14 +27,49 @@ def pipread(fname,tstep=-1,vararr='all'):
                lend=1
 #        dict(line.split(':', 1) for line in open(''.join(confdir)))
 #    print(conf)
-    if (vararr=='all'):
-        vararr=[]
+    vararr=[]
+    if (vararrin=='all'):
         if (conf['flag_eqs'] == 'MHD'):
             vararr=['ro_p','mx_p','my_p','mz_p','en_p','bx','by','bz','xgrid','ygrid','zgrid']
         if (conf['flag_eqs'] == 'HD'):
             vararr=['ro_n','mx_n','my_n','mz_n','en_n','xgrid','ygrid','zgrid']
         if (conf['flag_eqs'] == 'PIP'):
             vararr=['ro_p','mx_p','my_p','mz_p','en_p','ro_n','mx_n','my_n','mz_n','en_n','bx','by','bz','xgrid','ygrid','zgrid']
+    if (vararr!='all'):
+        for param in vararrin:
+            if param=='ro_p':
+                vararr.append('ro_p')
+            if param=='ro_n':
+                vararr.append('ro_n')
+            if param=='vx_p':
+                vararr.append('ro_p')
+                vararr.append('mx_p')
+            if param=='vy_p':
+                vararr.append('ro_p')
+                vararr.append('my_p')
+            if param=='vz_p':
+                vararr.append('ro_p')
+                vararr.append('mz_p')
+            if param=='bx':
+                vararr.append('bx')
+            if param=='by':
+                vararr.append('by')
+            if param=='bz':
+                vararr.append('bz')
+            if param=='pr_p':
+                vararr.append('ro_p')
+                vararr.append('mx_p')
+                vararr.append('my_p')
+                vararr.append('mz_p')
+                vararr.append('bx')
+                vararr.append('by')
+                vararr.append('bz')
+                vararr.append('en_p')
+#        vararr=vararrin
+        vararr.append('xgrid')
+        vararr.append('ygrid')
+        vararr.append('zgrid')
+        vararr=set(vararr)
     print(vararr)
     if (tstep != -1): 
         print("loading single time step")
@@ -65,8 +100,11 @@ def pipread(fname,tstep=-1,vararr='all'):
                     if param != 'xgrid' and param!='ygrid' and param!='zgrid':
                         data[param]=data[param][...,np.newaxis]
                 itco=1 
-                
-    data=cv2pv(data,conf['flag_eqs'])
+    
+    if (vararrin == 'all'):
+        data=cv2pv(data,conf['flag_eqs'])
+    if (vararrin != 'all'):
+        data=cv2pvvar(data,vararrin)
 
     if (conf['flag_rad'] == '1') or (conf['flag_rad'] == '2'):
 #        vararr.append('edref_m')
@@ -187,23 +225,39 @@ def cv2pvvar(data,vararr):
     zg=data["zgrid"]
     dataout={'xgrid':xg,'ygrid':yg,'zgrid':zg}
     for param in vararr:
+        if param =='xgrid':
+            temparr=data['xgrid']
+        if param =='ygrid':
+            temparr=data['ygrid']
+        if param =='zgrid':
+            temparr=data['zgrid']
         if param == "ro_p":
-            ro_p=data["ro_p"]
+            temparr=data["ro_p"]
         if param == "vx_p":
-            vx_p=data["mx_p"]/data["ro_p"]
+            temparr=data["mx_p"]/data["ro_p"]
         if param == "vy_p":
-            vy_p=data["my_p"]/data["ro_p"]
+            temparr=data["my_p"]/data["ro_p"]
         if param == "vz_p":
-            vz_p=data["mz_p"]/data["ro_p"]
+            temparr=data["mz_p"]/data["ro_p"]
         if param == "bx":
-            bx=data["bx"]
+            temparr=data["bx"]
         if param == "by":
-            by=data["by"]
+            temparr=data["by"]
         if param == "bz":
-            bz=data["bz"]
+            temparr=data["bz"]
         if param == "pr_p":
-            temparr=(gm-1.0)*(data["en_p"]-0.5*data["ro_p"]*(np.square(vx_p)+np.square(vy_p)+np.square(vz_p))
-                   -0.5*(np.square(bx)+np.square(by)+np.square(bz)))
+            temparr=(gm-1.0)*(data["en_p"]-0.5/data["ro_p"]*(np.square(data["mx_p"])+np.square(data["my_p"])+np.square(data["mz_p"]))
+                   -0.5*(np.square(data["bx"])+np.square(data["by"])+np.square(data["bz"])))
+        if param == "ro_n":
+            temparr=data["ro_n"]
+        if param == "vx_n":
+            temparr=data["mx_n"]/data["ro_n"]
+        if param == "vy_n":
+            temparr=data["my_n"]/data["ro_n"]
+        if param == "vz_n":
+            temparr=data["mz_n"]/data["ro_n"]
+        if param == "pr_n":
+            temparr=(gm-1.0)*(data["en_n"]-0.5/data["ro_n"]*(np.square(data["mx_n"])+np.square(data["my_n"])+np.square(data["mz_n"])))
         dataout[param]=temparr
 #    dataout={'ro_p':ro_p,'bx':bx,'by':by,'bz':bz,
 #              'vx_p':vx_p,'vy_p':vy_p,'vz_p':vz_p,'pr_p':pr_p,
