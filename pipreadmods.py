@@ -31,6 +31,8 @@ def pipread(fname,tstep=-1,vararr='all'):
         vararr=[]
         if (conf['flag_eqs'] == 'MHD'):
             vararr=['ro_p','mx_p','my_p','mz_p','en_p','bx','by','bz','xgrid','ygrid','zgrid']
+        if (conf['flag_eqs'] == 'HD'):
+            vararr=['ro_n','mx_n','my_n','mz_n','en_n','xgrid','ygrid','zgrid']
         if (conf['flag_eqs'] == 'PIP'):
             vararr=['ro_p','mx_p','my_p','mz_p','en_p','ro_n','mx_n','my_n','mz_n','en_n','bx','by','bz','xgrid','ygrid','zgrid']
     print(vararr)
@@ -62,9 +64,14 @@ def pipread(fname,tstep=-1,vararr='all'):
                 for param in datatemp:
                     if param != 'xgrid' and param!='ygrid' and param!='zgrid':
                         data[param]=data[param][...,np.newaxis]
-                itco=1     
-    data=cv2pv(data)
-            
+                itco=1 
+                
+    data=cv2pv(data,conf['flag_eqs'])
+
+    if (conf['flag_rad'] == '1') or (conf['flag_rad'] == '2'):
+#        vararr.append('edref_m')
+        datatemp=pipreadtimestep(fname,["edref_m"])    
+        data["edref_m"]=datatemp["edref_m"]
     return(data)
 
 ###############################################################################    
@@ -119,25 +126,55 @@ def pipread2(fname):
         return(data)
 
 ###############################################################################    
-def cv2pv(data):
+def cv2pv(data,flag_eqs):
     import numpy as np
     gm=5.0/3.0
     xg=data["xgrid"]
     yg=data["ygrid"]
     zg=data["zgrid"]
-    ro_p=data["ro_p"]
-    vx_p=data["mx_p"]/data["ro_p"]
-    vy_p=data["my_p"]/data["ro_p"]
-    vz_p=data["mz_p"]/data["ro_p"]
-    bx=data["bx"]
-    by=data["by"]
-    bz=data["bz"]
-    pr_p=(gm-1.0)*(data["en_p"]-0.5*data["ro_p"]*(np.square(vx_p)+np.square(vy_p)+np.square(vz_p))
-                   -0.5*(np.square(bx)+np.square(by)+np.square(bz)))
-    
-    dataout={'ro_p':ro_p,'bx':bx,'by':by,'bz':bz,
-              'vx_p':vx_p,'vy_p':vy_p,'vz_p':vz_p,'pr_p':pr_p,
-              'xgrid':xg,'ygrid':yg,'zgrid':zg}
+    if (flag_eqs == 'MHD'):
+        ro_p=data["ro_p"]
+        vx_p=data["mx_p"]/data["ro_p"]
+        vy_p=data["my_p"]/data["ro_p"]
+        vz_p=data["mz_p"]/data["ro_p"]
+        bx=data["bx"]
+        by=data["by"]
+        bz=data["bz"]
+        pr_p=(gm-1.0)*(data["en_p"]-0.5*data["ro_p"]*(np.square(vx_p)+np.square(vy_p)+np.square(vz_p))
+                       -0.5*(np.square(bx)+np.square(by)+np.square(bz)))
+        
+        dataout={'ro_p':ro_p,'bx':bx,'by':by,'bz':bz,
+                  'vx_p':vx_p,'vy_p':vy_p,'vz_p':vz_p,'pr_p':pr_p,
+                  'xgrid':xg,'ygrid':yg,'zgrid':zg}
+    if (flag_eqs == 'HD'):
+        ro_n=data["ro_n"]
+        vx_n=data["mx_n"]/data["ro_n"]
+        vy_n=data["my_n"]/data["ro_n"]
+        vz_n=data["mz_n"]/data["ro_n"]
+        pr_n=(gm-1.0)*(data["en_n"]-0.5*data["ro_n"]*(np.square(vx_n)+np.square(vy_n)+np.square(vz_n)))
+        
+        dataout={'ro_n':ro_n,'vx_n':vx_n,'vy_n':vy_n,'vz_n':vz_n,'pr_n':pr_n,
+                  'xgrid':xg,'ygrid':yg,'zgrid':zg}
+        
+    if (flag_eqs == 'PIP'):
+        ro_p=data["ro_p"]
+        vx_p=data["mx_p"]/data["ro_p"]
+        vy_p=data["my_p"]/data["ro_p"]
+        vz_p=data["mz_p"]/data["ro_p"]
+        bx=data["bx"]
+        by=data["by"]
+        bz=data["bz"]
+        pr_p=(gm-1.0)*(data["en_p"]-0.5*data["ro_p"]*(np.square(vx_p)+np.square(vy_p)+np.square(vz_p))
+                       -0.5*(np.square(bx)+np.square(by)+np.square(bz)))
+        ro_n=data["ro_n"]
+        vx_n=data["mx_n"]/data["ro_n"]
+        vy_n=data["my_n"]/data["ro_n"]
+        vz_n=data["mz_n"]/data["ro_n"]
+        pr_n=(gm-1.0)*(data["en_n"]-0.5*data["ro_n"]*(np.square(vx_n)+np.square(vy_n)+np.square(vz_n)))
+        
+        dataout={'ro_p':ro_p,'bx':bx,'by':by,'bz':bz,'vx_p':vx_p,'vy_p':vy_p,'vz_p':vz_p,'pr_p':pr_p,
+                 'ro_n':ro_n,'vx_n':vx_n,'vy_n':vy_n,'vz_n':vz_n,'pr_n':pr_n,
+                 'xgrid':xg,'ygrid':yg,'zgrid':zg}       
     return(dataout)
 
 ###############################################################################    
@@ -145,13 +182,11 @@ def cv2pvvar(data,vararr):
     import numpy as np
     gm=5.0/3.0
     dataout={}
+    xg=data["xgrid"]
+    yg=data["ygrid"]
+    zg=data["zgrid"]
+    dataout={'xgrid':xg,'ygrid':yg,'zgrid':zg}
     for param in vararr:
-        if param == "xgrid":
-            xg=data["xgrid"]
-        if param == "ygrid":
-            yg=data["ygrid"]
-        if param == "zgrid":
-            zg=data["zgrid"]
         if param == "ro_p":
             ro_p=data["ro_p"]
         if param == "vx_p":
