@@ -100,16 +100,47 @@ def pipread(fname,tstep=-1,vararrin='all'):
                     if param != 'xgrid' and param!='ygrid' and param!='zgrid':
                         data[param]=data[param][...,np.newaxis]
                 itco=1 
+                    
     
     if (vararrin == 'all'):
         data=cv2pv(data,conf['flag_eqs'])
     if (vararrin != 'all'):
         data=cv2pvvar(data,vararrin)
 
+#Ancillary file reading
+#Radiative losses
     if (conf['flag_rad'] == '1') or (conf['flag_rad'] == '2'):
 #        vararr.append('edref_m')
         datatemp=pipreadtimestep(fname,["edref_m"])    
         data["edref_m"]=datatemp["edref_m"]
+
+#Nlevel hydrogen        
+    if (conf['flag_IR'] == '4'):
+        if (tstep != -1): 
+            datatemp=pipreadtimestep(fname,["nexcite1","nexcite2","nexcite3","nexcite4","nexcite5","nexcite6"])    
+            for param in datatemp:
+                data[param]=datatemp[param]
+        if tstep ==-1:
+            timeCounter = len(glob.glob1(fname,"*.h5"))
+            itco=0
+            for t0 in sorted(glob.glob1(fname,"*.h5")):
+                #t0=0
+                fnamet=''.join([fname,t0])
+                datatemp=pipreadtimestep(fnamet,["nexcite1","nexcite2","nexcite3","nexcite4","nexcite5","nexcite6"])
+                if itco != 0:
+                    for param in datatemp:
+                        if param != 'xgrid' and param!='ygrid' and param!='zgrid':
+                            ref_data = datatemp[param]
+    #                        print(ref_data.shape,data[param].shape)
+    #                        data[param]=np.stack((data[param],ref_data),axis=-1)
+                            data[param]=np.concatenate([data[param],ref_data[...,np.newaxis]],axis=-1)
+    #                        data[param]=data[param].append(ref_data)  
+                if itco == 0:
+                    for param in datatemp:
+                        if param != 'xgrid' and param!='ygrid' and param!='zgrid':
+                            data[param]=datatemp[param][...,np.newaxis]
+                    itco=1 
+        
     return(data)
 
 ###############################################################################    
@@ -118,7 +149,7 @@ def pipreadtimestep(fname,vararr):
     import numpy as np
     with h5py.File(fname, "r") as f:
         # List all groups
-        print("Keys: %s" % f.keys())
+        #print("Keys: %s" % f.keys())
 
         # Get the data
         data={}
