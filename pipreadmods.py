@@ -114,6 +114,30 @@ def pipread(fname,tstep=-1,vararrin='all'):
         datatemp=pipreadtimestep(fname,["edref_m"])    
         data["edref_m"]=datatemp["edref_m"]
 
+#Ionisation and recombination        
+    if (conf['flag_IR'] >= '1'):
+        if (tstep != -1): 
+            datatemp=pipreadtimestep(fname,["ion","rec"])    
+            for param in datatemp:
+                data[param]=datatemp[param]
+        if tstep ==-1:
+            timeCounter = len(glob.glob1(fname,"*.h5"))
+            itco=0
+            for t0 in sorted(glob.glob1(fname,"*.h5")):
+                #t0=0
+                fnamet=''.join([fname,t0])
+                datatemp=pipreadtimestep(fnamet,["ion","rec"])
+                if itco != 0:
+                    for param in datatemp:
+                        if param != 'xgrid' and param!='ygrid' and param!='zgrid':
+                            ref_data = datatemp[param]
+                            data[param]=np.concatenate([data[param],ref_data[...,np.newaxis]],axis=-1)
+                if itco == 0:
+                    for param in datatemp:
+                        if param != 'xgrid' and param!='ygrid' and param!='zgrid':
+                            data[param]=datatemp[param][...,np.newaxis]
+                    itco=1 
+
 #Nlevel hydrogen        
     if (conf['flag_IR'] == '4'):
         if (tstep != -1): 
