@@ -3,7 +3,7 @@
 Module for reading in HDF5 data from the PIP code 
 """
 
-def pipread(fname,tstep=-1,vararrin='all'):
+def pipread(fname,tstep=-1,vararrin='all',exrates=0):
     #import h5py
     import numpy as np
     import glob
@@ -69,6 +69,7 @@ def pipread(fname,tstep=-1,vararrin='all'):
         vararr.append('xgrid')
         vararr.append('ygrid')
         vararr.append('zgrid')
+        vararr.append('time')
         vararr=set(vararr)
     print(vararr)
     if (tstep != -1): 
@@ -111,13 +112,21 @@ def pipread(fname,tstep=-1,vararrin='all'):
 #Radiative losses
     if (conf['flag_rad'] == '1') or (conf['flag_rad'] == '2'):
 #        vararr.append('edref_m')
-        datatemp=pipreadtimestep(fname,["edref_m"])    
-        data["edref_m"]=datatemp["edref_m"]
-
+        if (conf['flag_IR'] == '0'):
+            datatemp=pipreadtimestep(fname,["edref_m"])    
+            data["edref_m"]=datatemp["edref_m"]
+        if (conf['flag_IR'] >= '1'):
+            datatemp=pipreadtimestep(fname,["ion_rad",'rec_rad'])    
+            data["ion_rad"]=datatemp["ion_rad"]
+            data["rec_rad"]=datatemp["rec_rad"]
+    
 #Ionisation and recombination        
     if (conf['flag_IR'] >= '1'):
+        vararrtemp=["ion","rec"]
+        if (conf['flag_IR_type'] == '0'):
+            vararrtemp=["ion","rec","ion_loss"]
         if (tstep != -1): 
-            datatemp=pipreadtimestep(fname,["ion","rec"])    
+            datatemp=pipreadtimestep(fname,vararrtemp)    
             for param in datatemp:
                 data[param]=datatemp[param]
         if tstep ==-1:
@@ -126,7 +135,7 @@ def pipread(fname,tstep=-1,vararrin='all'):
             for t0 in sorted(glob.glob1(fname,"*.h5")):
                 #t0=0
                 fnamet=''.join([fname,t0])
-                datatemp=pipreadtimestep(fnamet,["ion","rec"])
+                datatemp=pipreadtimestep(fnamet,vararrtemp)
                 if itco != 0:
                     for param in datatemp:
                         if param != 'xgrid' and param!='ygrid' and param!='zgrid':
@@ -164,7 +173,57 @@ def pipread(fname,tstep=-1,vararrin='all'):
                         if param != 'xgrid' and param!='ygrid' and param!='zgrid':
                             data[param]=datatemp[param][...,np.newaxis]
                     itco=1 
-        
+        if ((tstep !=-1) and (exrates==1)):
+            #Create the array for the excitation rates
+            datatemp=pipreadtimestep(fname,['colrat11'])
+            data['colrat']=0.0*datatemp['colrat11'][...,np.newaxis,np.newaxis]
+            data['colrat']=np.concatenate([data['colrat'],0.0*datatemp['colrat11'][...,np.newaxis,np.newaxis]],axis=1)
+            data['colrat']=np.concatenate([data['colrat'],0.0*datatemp['colrat11'][...,np.newaxis,np.newaxis]],axis=1)
+            data['colrat']=np.concatenate([data['colrat'],0.0*datatemp['colrat11'][...,np.newaxis,np.newaxis]],axis=1)
+            data['colrat']=np.concatenate([data['colrat'],0.0*datatemp['colrat11'][...,np.newaxis,np.newaxis]],axis=1)
+            data['colrat']=np.concatenate([data['colrat'],0.0*datatemp['colrat11'][...,np.newaxis,np.newaxis]],axis=1)
+            data['colrat']=np.concatenate([data['colrat'],0.0*datatemp['colrat11'][...,np.newaxis,np.newaxis]],axis=1)
+            
+            data['colrat']=np.concatenate([data['colrat'],data['colrat']],axis=2)
+            data['colrat']=np.concatenate([data['colrat'],data['colrat']],axis=2)
+            datatemp=data['colrat'][:,:,1]
+            data['colrat']=np.concatenate([data['colrat'],datatemp[:,:,np.newaxis]],axis=2)
+            data['colrat']=np.concatenate([data['colrat'],datatemp[:,:,np.newaxis]],axis=2)
+            data['colrat']=np.concatenate([data['colrat'],datatemp[:,:,np.newaxis]],axis=2)
+            
+            #print(np.size(data['colrat']))
+            for i in range(1,7):
+                for j in range(1,7):
+                    creadname=''.join(['colrat',"{:0>1d}".format(i),"{:0>1d}".format(j)])
+                    #print(creadname)
+                    datatemp=pipreadtimestep(fname,[creadname])
+                    data['colrat'][:,i,j]=datatemp[creadname]
+#                    data['colrat']=np.concatenate([data['colrat'],datatemp[creadname][...,np.newaxis,np.newaxis]],axis=-1)
+            if (conf['flag_IR_type'] == '0'):
+                datatemp=pipreadtimestep(fname,['radrat11'])
+                data['radrat']=0.0*datatemp['radrat11'][...,np.newaxis,np.newaxis]
+                data['radrat']=np.concatenate([data['radrat'],0.0*datatemp['radrat11'][...,np.newaxis,np.newaxis]],axis=1)
+                data['radrat']=np.concatenate([data['radrat'],0.0*datatemp['radrat11'][...,np.newaxis,np.newaxis]],axis=1)
+                data['radrat']=np.concatenate([data['radrat'],0.0*datatemp['radrat11'][...,np.newaxis,np.newaxis]],axis=1)
+                data['radrat']=np.concatenate([data['radrat'],0.0*datatemp['radrat11'][...,np.newaxis,np.newaxis]],axis=1)
+                data['radrat']=np.concatenate([data['radrat'],0.0*datatemp['radrat11'][...,np.newaxis,np.newaxis]],axis=1)
+                data['radrat']=np.concatenate([data['radrat'],0.0*datatemp['radrat11'][...,np.newaxis,np.newaxis]],axis=1)
+                
+                data['radrat']=np.concatenate([data['radrat'],data['radrat']],axis=2)
+                data['radrat']=np.concatenate([data['radrat'],data['radrat']],axis=2)
+                datatemp=data['radrat'][:,:,1]
+                data['radrat']=np.concatenate([data['radrat'],datatemp[:,:,np.newaxis]],axis=2)
+                data['radrat']=np.concatenate([data['radrat'],datatemp[:,:,np.newaxis]],axis=2)
+                data['radrat']=np.concatenate([data['radrat'],datatemp[:,:,np.newaxis]],axis=2)
+                
+                #print(np.size(data['colrat']))
+                for i in range(1,7):
+                    for j in range(1,7):
+                        creadname=''.join(['radrat',"{:0>1d}".format(i),"{:0>1d}".format(j)])
+                        #print(creadname)
+                        datatemp=pipreadtimestep(fname,[creadname])
+                        data['radrat'][:,i,j]=datatemp[creadname]
+    #                    data['colrat']=np.concatenate([data['colrat'],datatemp[creadname][...,np.newaxis,np.newaxis]],axis=-1)
     return(data)
 
 ###############################################################################    
@@ -225,6 +284,7 @@ def cv2pv(data,flag_eqs):
     xg=data["xgrid"]
     yg=data["ygrid"]
     zg=data["zgrid"]
+    time=data["time"]
     if (flag_eqs == 'MHD'):
         ro_p=data["ro_p"]
         vx_p=data["mx_p"]/data["ro_p"]
@@ -267,7 +327,7 @@ def cv2pv(data,flag_eqs):
         
         dataout={'ro_p':ro_p,'bx':bx,'by':by,'bz':bz,'vx_p':vx_p,'vy_p':vy_p,'vz_p':vz_p,'pr_p':pr_p,
                  'ro_n':ro_n,'vx_n':vx_n,'vy_n':vy_n,'vz_n':vz_n,'pr_n':pr_n,
-                 'xgrid':xg,'ygrid':yg,'zgrid':zg}       
+                 'xgrid':xg,'ygrid':yg,'zgrid':zg,'time':time}       
     return(dataout)
 
 ###############################################################################    
