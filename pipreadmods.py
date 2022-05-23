@@ -110,7 +110,7 @@ def pipread(fname,tstep=-1,vararrin='all',exrates=0):
 
 #Ancillary file reading
 #Radiative losses
-    if (conf['flag_rad'] == '1') or (conf['flag_rad'] == '2'):
+    if (conf['flag_rad'] == '1') or (conf['flag_rad'] >= '2'):
 #        vararr.append('edref_m')
         if (conf['flag_IR'] == '0'):
             datatemp=pipreadtimestep(fname,["edref_m"])    
