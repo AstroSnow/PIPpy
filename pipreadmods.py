@@ -121,10 +121,10 @@ def pipread(fname,tstep=-1,vararrin='all',exrates=0):
             data["rec_rad"]=datatemp["rec_rad"]
     
 #Ionisation and recombination        
-    if (conf['flag_IR'] >= '1'):
+    if (conf['flag_IR'] >= '1') and (conf['flag_eqs']=='PIP'):
         vararrtemp=["ion","rec"]
         if (conf['flag_IR_type'] == '0'):
-            vararrtemp=["ion","rec","ion_loss"]
+            vararrtemp=["ion","rec","ion_loss","aheat"]
         if (tstep != -1): 
             datatemp=pipreadtimestep(fname,vararrtemp)    
             for param in datatemp:
@@ -148,7 +148,7 @@ def pipread(fname,tstep=-1,vararrin='all',exrates=0):
                     itco=1 
 
 #Nlevel hydrogen        
-    if (conf['flag_IR'] == '4'):
+    if (conf['flag_IR'] == '4') and (conf['flag_eqs']=='PIP'):
         if (tstep != -1): 
             datatemp=pipreadtimestep(fname,["nexcite1","nexcite2","nexcite3","nexcite4","nexcite5","nexcite6"])    
             for param in datatemp:
@@ -199,7 +199,7 @@ def pipread(fname,tstep=-1,vararrin='all',exrates=0):
                     datatemp=pipreadtimestep(fname,[creadname])
                     data['colrat'][:,i,j]=datatemp[creadname]
 #                    data['colrat']=np.concatenate([data['colrat'],datatemp[creadname][...,np.newaxis,np.newaxis]],axis=-1)
-            if (conf['flag_IR_type'] == '0'):
+            if (conf['flag_IR_type'] == '0') and (conf['flag_rad'] >= '2'):
                 datatemp=pipreadtimestep(fname,['radrat11'])
                 data['radrat']=0.0*datatemp['radrat11'][...,np.newaxis,np.newaxis]
                 data['radrat']=np.concatenate([data['radrat'],0.0*datatemp['radrat11'][...,np.newaxis,np.newaxis]],axis=1)
@@ -298,7 +298,7 @@ def cv2pv(data,flag_eqs):
         
         dataout={'ro_p':ro_p,'bx':bx,'by':by,'bz':bz,
                   'vx_p':vx_p,'vy_p':vy_p,'vz_p':vz_p,'pr_p':pr_p,
-                  'xgrid':xg,'ygrid':yg,'zgrid':zg}
+                  'xgrid':xg,'ygrid':yg,'zgrid':zg,'time':time}
     if (flag_eqs == 'HD'):
         ro_n=data["ro_n"]
         vx_n=data["mx_n"]/data["ro_n"]
@@ -307,7 +307,7 @@ def cv2pv(data,flag_eqs):
         pr_n=(gm-1.0)*(data["en_n"]-0.5*data["ro_n"]*(np.square(vx_n)+np.square(vy_n)+np.square(vz_n)))
         
         dataout={'ro_n':ro_n,'vx_n':vx_n,'vy_n':vy_n,'vz_n':vz_n,'pr_n':pr_n,
-                  'xgrid':xg,'ygrid':yg,'zgrid':zg}
+                  'xgrid':xg,'ygrid':yg,'zgrid':zg,'time':time}
         
     if (flag_eqs == 'PIP'):
         ro_p=data["ro_p"]
@@ -338,7 +338,8 @@ def cv2pvvar(data,vararr):
     xg=data["xgrid"]
     yg=data["ygrid"]
     zg=data["zgrid"]
-    dataout={'xgrid':xg,'ygrid':yg,'zgrid':zg}
+    time=data["time"]
+    dataout={'xgrid':xg,'ygrid':yg,'zgrid':zg,'time':time}
     for param in vararr:
         if param =='xgrid':
             temparr=data['xgrid']
@@ -378,3 +379,5 @@ def cv2pvvar(data,vararr):
 #              'vx_p':vx_p,'vy_p':vy_p,'vz_p':vz_p,'pr_p':pr_p,
 #              'xgrid':xg,'ygrid':yg,'zgrid':zg}
     return(dataout)
+
+###############################################################################
