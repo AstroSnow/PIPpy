@@ -28,13 +28,14 @@ def pipread(fname,tstep=-1,vararrin='all',exrates=0):
 #        dict(line.split(':', 1) for line in open(''.join(confdir)))
 #    print(conf)
     vararr=[]
+    varex=[]
     if (vararrin=='all'):
         if (conf['flag_eqs'] == 'MHD'):
             vararr=['ro_p','mx_p','my_p','mz_p','en_p','bx','by','bz','xgrid','ygrid','zgrid']
         if (conf['flag_eqs'] == 'HD'):
             vararr=['ro_n','mx_n','my_n','mz_n','en_n','xgrid','ygrid','zgrid']
         if (conf['flag_eqs'] == 'PIP'):
-            vararr=['ro_p','mx_p','my_p','mz_p','en_p','ro_n','mx_n','my_n','mz_n','en_n','bx','by','bz','xgrid','ygrid','zgrid']
+            vararr=['ac','ro_p','mx_p','my_p','mz_p','en_p','ro_n','mx_n','my_n','mz_n','en_n','bx','by','bz','xgrid','ygrid','zgrid']
     if (vararr!='all'):
         for param in vararrin:
             if param=='ro_p':
@@ -70,6 +71,9 @@ def pipread(fname,tstep=-1,vararrin='all',exrates=0):
         vararr.append('ygrid')
         vararr.append('zgrid')
         vararr.append('time')
+        if (conf['flag_rad'] == '1') or (conf['flag_rad'] >= '2') and (conf['flag_IR'] == '0'):
+            vararr.append('edref_m')
+            varex.append('edref_m')
         vararr=set(vararr)
     print(vararr)
     if (tstep != -1): 
@@ -104,7 +108,7 @@ def pipread(fname,tstep=-1,vararrin='all',exrates=0):
                     
     
     if (vararrin == 'all'):
-        data=cv2pv(data,conf['flag_eqs'])
+        data=cv2pv(data,conf['flag_eqs'],varex)
     if (vararrin != 'all'):
         data=cv2pvvar(data,vararrin)
 
@@ -112,9 +116,9 @@ def pipread(fname,tstep=-1,vararrin='all',exrates=0):
 #Radiative losses
     if (conf['flag_rad'] == '1') or (conf['flag_rad'] >= '2'):
 #        vararr.append('edref_m')
-        if (conf['flag_IR'] == '0'):
-            datatemp=pipreadtimestep(fname,["edref_m"])    
-            data["edref_m"]=datatemp["edref_m"]
+        #if (conf['flag_IR'] == '0'):
+            #datatemp=pipreadtimestep(fname,["edref_m"])    
+            #data["edref_m"]=datatemp["edref_m"]
         if (conf['flag_IR'] >= '1'):
             datatemp=pipreadtimestep(fname,["ion_rad",'rec_rad'])    
             data["ion_rad"]=datatemp["ion_rad"]
@@ -278,7 +282,7 @@ def pipread2(fname):
         return(data)
 
 ###############################################################################    
-def cv2pv(data,flag_eqs):
+def cv2pv(data,flag_eqs,varex):
     import numpy as np
     gm=5.0/3.0
     xg=data["xgrid"]
@@ -325,9 +329,14 @@ def cv2pv(data,flag_eqs):
         vz_n=data["mz_n"]/data["ro_n"]
         pr_n=(gm-1.0)*(data["en_n"]-0.5*data["ro_n"]*(np.square(vx_n)+np.square(vy_n)+np.square(vz_n)))
         
+        ac=data["ac"]
         dataout={'ro_p':ro_p,'bx':bx,'by':by,'bz':bz,'vx_p':vx_p,'vy_p':vy_p,'vz_p':vz_p,'pr_p':pr_p,
                  'ro_n':ro_n,'vx_n':vx_n,'vy_n':vy_n,'vz_n':vz_n,'pr_n':pr_n,
-                 'xgrid':xg,'ygrid':yg,'zgrid':zg,'time':time}       
+                 'xgrid':xg,'ygrid':yg,'zgrid':zg,'time':time,'ac':ac}       
+    for param in varex:
+        if (param == "edref_m"):
+            edref_m=data["edref_m"]
+            dataout["edref_m"]=edref_m
     return(dataout)
 
 ###############################################################################    
@@ -381,3 +390,33 @@ def cv2pvvar(data,vararr):
     return(dataout)
 
 ###############################################################################
+
+def getTimeSteps(ds):
+	import numpy as np
+	
+	print('Calculate the timesteps in each cell. CURRENTLY MHD ONLY')
+	
+	ts={} #return variable
+	
+	#Constants
+	print('Assuming usual constants and ignoring Safety')
+	gamma=5.0/3.0
+	
+	##################################
+	#MHD CFL condition
+	gmin=min(ds['xgrid'][1]-ds['xgrid'][0],ds['ygrid'][1]-ds['ygrid'][0],ds['zgrid'][1]-ds['zgrid'][0])
+	cs2=gamma*ds['pr_p']/ds['ro_p']
+	va2=(np.square(ds['bx'])+np.square(ds['by'])+np.square(ds['bz']))/ds['ro_p']
+	vabs=np.sqrt(np.square(ds['vx_p'])+np.square(ds['vy_p'])+np.square(ds['vz_p']))
+	dt_mhd=gmin/(vabs+np.sqrt(cs2+va2))
+	ts['dt_mhd']=dt_mhd
+	##################################
+	#Radiative CFL condition
+	try:
+		ts_rad=ds['edref_m']*np.square(ds['ro_p'])/(ds['pr_p']/(gamma-1.0))
+		dt_rad=1.0/ts_rad
+		ts['dt_rad']=dt_rad
+	except:
+		pass
+	
+	return(ts)
